@@ -22,4 +22,4 @@ class MyPlugin(Star):
         conversation = await conv_mgr.get_conversation(uid, curr_cid)
         history = conversation.history
         logger.info(f"History: {history} \n Prompt: {req.prompt} \n contexts: {str(req.contexts)}")
-        pass
+        logger.info(f"system: {req.system_prompt}\n")
