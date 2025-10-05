@@ -3,7 +3,7 @@ from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 from astrbot.core.provider.entities import ProviderRequest
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.2.1")
+@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.2.2")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -21,7 +21,5 @@ class MyPlugin(Star):
         curr_cid = await conv_mgr.get_curr_conversation_id(uid)
         conversation = await conv_mgr.get_conversation(uid, curr_cid)
         history = conversation.history
-        logger.info(f"History: {history}")
-        logger.info(f"prompt: {req.prompt}")
-        logger.info(f"contexts: {req.contexts}")
+        logger.info(f"History: {history} \n Prompt: {req.prompt} \n contexts: {str(req.contexts)}")
         pass
