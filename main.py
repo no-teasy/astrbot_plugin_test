@@ -12,6 +12,8 @@ class MyPlugin(Star):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
 
+
+
     @filter.on_llm_request()
     async def my_custom_hook_1(self, event: AstrMessageEvent, req: ProviderRequest): # 请注意有三个参数
         uid = event.unified_msg_origin
@@ -20,4 +22,6 @@ class MyPlugin(Star):
         conversation = await conv_mgr.get_conversation(uid, curr_cid)
         history = conversation.history
         logger.info(f"History: {history}")
+        logger.info(f"prompt: {req.prompt}")
+        logger.info(f"contexts: {req.contexts}")
         pass
