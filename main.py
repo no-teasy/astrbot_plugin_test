@@ -9,6 +9,7 @@ import astrbot.api.message_components as Comp
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
+from astrbot.core.platform import AstrMessageEvent
 from astrbot.core.star.filter.permission import PermissionType
 from astrbot.core.message.message_event_result import (
     MessageEventResult)
@@ -53,11 +54,11 @@ stranger_responses = [
 
 
 @register(
-    "astrbot_plugin_test",
-    "Futureo",
+    "astrbot_plugin_zanwo",
+    "Futureppo",
     "发送 赞我 自动点赞",
     "1.0.8",
-    "https://github.com/no-teasy/astrbot_plugin_test",
+    "https://github.com/Futureppo/astrbot_plugin_zanwo",
 )
 class zanwo(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -204,9 +205,12 @@ class zanwo(Star):
         url = await self.text_to_image(reply)
         yield event.image_result(url)
     @filter.llm_tool(name="like_me")
-    async def like_me(self, event: AiocqhttpMessageEvent) -> MessageEventResult:
+    async def like_me(self, event: AstrMessageEvent) -> MessageEventResult:
         '''为用户点赞
         '''
+        if not event.get_platform_name() == "aiocqhttp":
+            return
+        assert isinstance(event, AiocqhttpMessageEvent)
         client = event.bot
         target_ids = []
         target_ids.append(event.get_sender_id())
