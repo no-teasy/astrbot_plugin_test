@@ -10,8 +10,9 @@ from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
 from astrbot.core.platform import AstrMessageEvent
-from astrbot.core.message.message_event_result import MessageEventResult
-
+from astrbot.core.star.filter.permission import PermissionType
+from astrbot.core.message.message_event_result import (
+    MessageEventResult)
 # 点赞成功回复
 success_responses = [
     "👍{total_likes}",
@@ -56,7 +57,7 @@ stranger_responses = [
     "astrbot_plugin_test",
     "no-teasy",
     "发送 赞我 自动点赞",
-    "1.0.9",
+    "1.0.10",
     "https://github.com/no-teasy/astrbot_plugin_test",
 )
 class zanwo(Star):
@@ -65,59 +66,164 @@ class zanwo(Star):
         self.config = config
         self.success_responses: list[str] = success_responses
 
-    async def _like(self, client: CQHttp, user_id: str) -> str:
-        """
-        给单个用户点赞
-        :param client: CQHttp客户端
-        :param user_id: 用户ID
-        """
-        total_likes = 0
-        username = (await client.get_stranger_info(user_id=int(user_id))).get(
-            "nickname", "未知用户"
+        # 群聊白名单
+        self.enable_white_list_groups: bool = config.get(
+            "enable_white_list_groups", False
         )
-        for _ in range(5):
-            try:
-                await client.send_like(user_id=int(user_id), times=10)  # 点赞10次
-                total_likes += 10
-            except aiocqhttp.exceptions.ActionFailed as e:
-                error_message = str(e)
-                if "已达" in error_message:
-                    error_reply = random.choice(limit_responses)
-                elif "权限" in error_message:
-                    error_reply = "你设了权限不许陌生人赞你"
-                else:
-                    error_reply = random.choice(stranger_responses)
-                break
+        self.white_list_groups: list[str] = config.get("white_list_groups", [])
+        # 订阅点赞的用户ID列表
+        self.subscribed_users: list[str] = config.get("subscribed_users", [])
+        # 点赞日期
+        self.zanwo_date: str = config.get("zanwo_date", None)
 
-        reply = random.choice(self.success_responses) if total_likes > 0 else error_reply
+    async def _like(self, client: CQHttp, ids: list[str]) -> str:
+        """
+        点赞的核心逻辑
+        :param client: CQHttp客户端
+        :param ids: 用户ID列表
+        """
+        replys = []
+        for id in ids:
+            total_likes = 0
+            username = (await client.get_stranger_info(user_id=int(id))).get(
+                "nickname", "未知用户"
+            )
+            for _ in range(5):
+                try:
+                    await client.send_like(user_id=int(id), times=10)  # 点赞10次
+                    total_likes += 10
+                except aiocqhttp.exceptions.ActionFailed as e:
+                    error_message = str(e)
+                    if "已达" in error_message:
+                        error_reply = random.choice(limit_responses)
+                    elif "权限" in error_message:
+                        error_reply = "你设了权限不许陌生人赞你"
+                    else:
+                        error_reply = random.choice(stranger_responses)
+                    break
 
-        # 替换占位符
-        if "{username}" in reply:
-            reply = reply.replace("{username}", username)
-        if "{total_likes}" in reply:
-            reply = reply.replace("{total_likes}", str(total_likes))
+            reply = random.choice(self.success_responses) if total_likes > 0 else error_reply
 
-        return reply
+             # 检查 reply 中是否包含占位符，并根据需要进行替换
+            if "{username}" in reply:
+                reply = reply.replace("{username}", username)
+            if "{total_likes}" in reply:
+                reply = reply.replace("{total_likes}", str(total_likes))
+
+            replys.append(reply)
+
+        return "\n".join(replys).strip()
+
+    @staticmethod
+    def get_ats(event: AiocqhttpMessageEvent) -> list[str]:
+        """获取被at者们的id列表"""
+        messages = event.get_messages()
+        self_id = event.get_self_id()
+        return [
+            str(seg.qq)
+            for seg in messages
+            if (isinstance(seg, Comp.At) and str(seg.qq) != self_id)
+        ]
 
     @filter.regex(r"^赞.*")
     async def like_me(self, event: AiocqhttpMessageEvent):
-        """给发送者点赞"""
-        sender_id = event.get_sender_id()
+        """给用户点赞"""
+        # 检查群组id是否在白名单中, 若没填写白名单则不检查
+        if self.enable_white_list_groups:
+            if event.get_group_id() not in self.white_list_groups:
+                return
+        target_ids = []
+        if event.message_str == "赞我":
+            target_ids.append(event.get_sender_id())
+        if not target_ids:
+            target_ids = self.get_ats(event)
+        if not target_ids:
+            return
         client = event.bot
-        result = await self._like(client, sender_id)
+        result = await self._like(client, target_ids)
         yield event.plain_result(result)
 
+        # 触发自动点赞
+        if self.subscribed_users and self.zanwo_date != datetime.now().date().strftime(
+            "%Y-%m-%d"
+        ):
+            await self._like(client, self.subscribed_users)
+            self.today_data = datetime.now().date().strftime("%Y-%m-%d")
+            self.config.save_config()
+
+    @filter.command("订阅点赞")
+    async def subscribe_like(self, event: AiocqhttpMessageEvent):
+        """订阅点赞"""
+        sender_id = event.get_sender_id()
+        event.session_id
+        if sender_id in self.subscribed_users:
+            yield event.plain_result("你已经订阅点赞了哦~")
+            return
+        self.subscribed_users.append(sender_id)
+        self.config.save_config()
+        yield event.plain_result("订阅成功！我将每天自动为你点赞")
+
+    @filter.command("取消订阅点赞")
+    async def unsubscribe_like(self, event: AiocqhttpMessageEvent):
+        """取消订阅点赞"""
+        sender_id = event.get_sender_id()
+        if sender_id not in self.subscribed_users:
+            yield event.plain_result("你还没有订阅点赞哦~")
+            return
+        self.subscribed_users.remove(sender_id)
+        self.config.save_config()
+        yield event.plain_result("已取消订阅！我将不再自动给你点赞")
+
+    @filter.command("订阅点赞列表")
+    async def like_list(self, event: AiocqhttpMessageEvent):
+        """查看订阅点赞的用户ID列表"""
+
+        if not self.subscribed_users:
+            yield event.plain_result("当前没有订阅点赞的用户哦~")
+            return
+        users_str = "\n".join(self.subscribed_users).strip()
+        yield event.plain_result(f"当前订阅点赞的用户ID列表：\n{users_str}")
+
+    @filter.permission_type(PermissionType.ADMIN)
+    @filter.command("谁赞了bot", alias={"谁赞了你"})
+    async def get_profile_like(self, event: AiocqhttpMessageEvent):
+        """获取bot自身点赞列表"""
+        client = event.bot
+        data = await client.get_profile_like()
+        reply = ""
+        user_infos = data.get("favoriteInfo", {}).get("userInfos", [])
+        for user in user_infos:
+            if (
+                "nick" in user
+                and user["nick"]
+                and "count" in user
+                and user["count"] > 0
+            ):
+                reply += f"\n【{user['nick']}】赞了我{user['count']}次"
+        if not reply:
+            reply = "暂无有效的点赞信息"
+        url = await self.text_to_image(reply)
+        yield event.image_result(url)
     @filter.llm_tool(name="like_me")
-    async def like_me(self, event: AstrMessageEvent, random: int) -> MessageEventResult:
-        """为发送者点赞
+    async def like_me(self, event: AstrMessageEvent,random:int) -> MessageEventResult:
+        '''为用户点赞
         
         Args: 
         random 随机数字
-        """
+        '''
         if not event.get_platform_name() == "aiocqhttp":
             return
         assert isinstance(event, AiocqhttpMessageEvent)
         client = event.bot
-        sender_id = event.get_sender_id()
-        result = await self._like(client, sender_id)
+        target_ids = []
+        target_ids.append(event.get_sender_id())
+        result = await self._like(client, target_ids)
         yield event.plain_result(result)
+    @filter.llm_tool(name="get_weather") # 如果 name 不填，将使用函数名
+    async def get_weather(self, event: AstrMessageEvent, location: str) -> MessageEventResult:
+        '''获取天气信息。
+    
+        Args:
+            location(string): 地点
+        '''
+        yield event.plain_result("天气信息: " + location)
