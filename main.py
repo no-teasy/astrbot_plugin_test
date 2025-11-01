@@ -207,6 +207,8 @@ class zanwo(Star):
     @filter.llm_tool(name="like_me")
     async def like_me(self, event: AstrMessageEvent) -> MessageEventResult:
         '''为用户点赞
+        
+        Args: 
         '''
         if not event.get_platform_name() == "aiocqhttp":
             return
