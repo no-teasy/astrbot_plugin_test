@@ -204,12 +204,12 @@ class zanwo(Star):
             reply = "暂无有效的点赞信息"
         url = await self.text_to_image(reply)
         yield event.image_result(url)
-    @filter.llm_tool(name="like_me")
-    async def like_me(self, event: AstrMessageEvent,random:int) -> MessageEventResult:
+    @filter.llm_tool(name="g_like_me")
+    async def g_like_me(self, event: AstrMessageEvent, random:int) -> MessageEventResult:
         '''为用户点赞
         
         Args: 
-        random 随机数字
+            random(int): 随机数字
         '''
         if not event.get_platform_name() == "aiocqhttp":
             return
@@ -219,6 +219,7 @@ class zanwo(Star):
         target_ids.append(event.get_sender_id())
         result = await self._like(client, target_ids)
         yield event.plain_result(result)
+        
     @filter.llm_tool(name="get_weather") # 如果 name 不填，将使用函数名
     async def get_weather(self, event: AstrMessageEvent, location: str) -> MessageEventResult:
         '''获取天气信息。
