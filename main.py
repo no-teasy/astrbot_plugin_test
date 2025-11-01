@@ -57,7 +57,7 @@ stranger_responses = [
     "astrbot_plugin_test",
     "no-teasy",
     "发送 赞我 自动点赞",
-    "1.0.10",
+    "11.10",
     "https://github.com/no-teasy/astrbot_plugin_test",
 )
 class zanwo(Star):
@@ -209,7 +209,7 @@ class zanwo(Star):
         '''为用户点赞
         
         Args: 
-            random(number): 随机数字
+            random(int): 随机数字
         '''
         if not event.get_platform_name() == "aiocqhttp":
             return
@@ -218,7 +218,7 @@ class zanwo(Star):
         target_ids = []
         target_ids.append(event.get_sender_id())
         result = await self._like(client, target_ids)
-        yield event.plain_result(result)
+        yield event.plain_result("ok")
         
     @filter.llm_tool(name="get_weather") # 如果 name 不填，将使用函数名
     async def get_weather(self, event: AstrMessageEvent, location: str) -> MessageEventResult:
