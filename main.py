@@ -10,7 +10,8 @@ from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
 from astrbot.core.star.filter.permission import PermissionType
-
+from astrbot.core.message.message_event_result import (
+    MessageEventResult)
 # 点赞成功回复
 success_responses = [
     "👍{total_likes}",
