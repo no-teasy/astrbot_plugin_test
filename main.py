@@ -209,7 +209,7 @@ class zanwo(Star):
         '''为用户点赞
         
         Args: 
-        random 随机数字
+        random(int) 随机数字
         '''
         if not event.get_platform_name() == "aiocqhttp":
             return
