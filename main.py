@@ -112,7 +112,7 @@ class zanwo(Star):
 
             replys.append(reply)
 
-        return "\n".join(replys).strip()
+        return "\n 测试".join(replys).strip()
 
     @staticmethod
     def get_ats(event: AiocqhttpMessageEvent) -> list[str]:
