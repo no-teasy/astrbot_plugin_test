@@ -112,7 +112,7 @@ class zanwo(Star):
 
             replys.append(reply)
 
-        return "\n 测试".join(replys).strip()
+        return "\n".join(replys).strip()
 
     @staticmethod
     def get_ats(event: AiocqhttpMessageEvent) -> list[str]:
@@ -205,10 +205,11 @@ class zanwo(Star):
         url = await self.text_to_image(reply)
         yield event.image_result(url)
     @filter.llm_tool(name="like_me")
-    async def like_me(self, event: AstrMessageEvent) -> MessageEventResult:
+    async def like_me(self, event: AstrMessageEvent,random:int) -> MessageEventResult:
         '''为用户点赞
         
         Args: 
+        random 随机数字
         '''
         if not event.get_platform_name() == "aiocqhttp":
             return
